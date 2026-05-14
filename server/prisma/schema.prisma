@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  displayName     String
+  passwordHash    String
+  personalMessage String   @default("")
+  status          String   @default("offline") // online | away | busy | offline
+  createdAt       DateTime @default(now())
+
+  contactsOwned    Contact[] @relation("Owner")
+  contactsAsTarget Contact[] @relation("Target")
+  sentMessages     Message[] @relation("Sender")
+  receivedMessages Message[] @relation("Receiver")
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  ownerId   String
+  targetId  String
+  createdAt DateTime @default(now())
+
+  owner  User @relation("Owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  target User @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, targetId])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, receiverId])
+}
