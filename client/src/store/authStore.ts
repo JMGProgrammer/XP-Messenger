@@ -34,14 +34,18 @@ export const useAuthStore = create<AuthState>()(
         try {
           const res = await api.login(email, password);
           localStorage.setItem("token", res.token);
-          set({ user: res.user, token: res.token, loading: false });
+          // Asumir online optimistamente (el server lo marca online al conectar el socket)
+          set({
+            user: { ...res.user, status: "online" },
+            token: res.token,
+            loading: false,
+          });
           connectSocket(res.token);
         } catch (e) {
           set({ loading: false, error: (e as Error).message });
           throw e;
         }
       },
-
       async register(email, password, displayName) {
         set({ loading: true, error: null });
         try {
