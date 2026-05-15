@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
 import { signToken, verifyToken } from "./jwt.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
 
 export const authRouter = Router();
 
@@ -87,4 +88,33 @@ authRouter.get("/me", async (req, res) => {
   } catch {
     res.status(401).json({ error: "Invalid token" });
   }
+});
+
+// PATCH /auth/me - actualizar el perfil propio (personalMessage, displayName)
+const patchMeSchema = z.object({
+  personalMessage: z.string().max(80).optional(),
+  displayName: z.string().min(1).max(40).optional(),
+});
+
+authRouter.patch("/me", authMiddleware, async (req, res) => {
+  const parsed = patchMeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid data" });
+
+  const data = parsed.data;
+  if (Object.keys(data).length === 0) {
+    return res.status(400).json({ error: "No fields to update" });
+  }
+
+  const user = await prisma.user.update({
+    where: { id: req.userId! },
+    data,
+  });
+
+  res.json({
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    personalMessage: user.personalMessage,
+    status: user.status,
+  });
 });

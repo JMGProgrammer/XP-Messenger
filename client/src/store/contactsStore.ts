@@ -11,10 +11,11 @@ interface ContactsState {
 
   fetchContacts: () => Promise<void>;
   addContact: (email: string) => Promise<Contact>;
-  attachSocketListeners: () => void;
+  removeContact: (contactId: string) => Promise<void>;
+  attachSocketListeners: () => boolean;
   detachSocketListeners: () => void;
-  // Internos
   _setStatus: (userId: string, status: UserStatus) => void;
+  _removeLocal: (userId: string) => void;
 }
 
 export const useContactsStore = create<ContactsState>()((set, get) => ({
@@ -39,6 +40,14 @@ export const useContactsStore = create<ContactsState>()((set, get) => ({
     return contact;
   },
 
+  async removeContact(contactId) {
+    await api.removeContact(contactId);
+    get()._removeLocal(contactId);
+    // Notificar al otro user (si está online) que lo quitamos como contacto
+    const socket = getSocket();
+    socket?.emit("contact:removed", { removedUserId: contactId });
+  },
+
   _setStatus(userId, status) {
     set({
       contacts: get().contacts.map((c) =>
@@ -47,14 +56,19 @@ export const useContactsStore = create<ContactsState>()((set, get) => ({
     });
   },
 
-  attachSocketListeners() {
-    const socket = getSocket();
-    if (!socket) {
-      console.warn("attachSocketListeners: socket no disponible");
-      return;
-    }
+  _removeLocal(userId) {
+    set({ contacts: get().contacts.filter((c) => c.id !== userId) });
+  },
 
-    // Estados iniciales que envía el server cuando me conecto
+  attachSocketListeners() {
+    if (get().socketReady) return true;
+    const socket = getSocket();
+    if (!socket) return false;
+
+    socket.off("contacts:initialStatuses");
+    socket.off("contact:status");
+    socket.off("contact:removedByOther");
+
     socket.on(
       "contacts:initialStatuses",
       (payload: Array<{ userId: string; status: UserStatus }>) => {
@@ -67,7 +81,6 @@ export const useContactsStore = create<ContactsState>()((set, get) => ({
       },
     );
 
-    // Cambios de estado de contactos en vivo
     socket.on(
       "contact:status",
       (payload: { userId: string; status: UserStatus }) => {
@@ -75,14 +88,25 @@ export const useContactsStore = create<ContactsState>()((set, get) => ({
       },
     );
 
+    // Si otro user me elimina, simplemente refrescamos para mantener
+    // consistencia (puede que ya no sea contacto mutuo).
+    // No quitamos automáticamente al otro de nuestra lista — la decisión
+    // de mantenerlo es del usuario.
+    socket.on("contact:removedByOther", () => {
+      // Silencioso por ahora; podríamos emitir una notificación si quisiéramos
+    });
+
     set({ socketReady: true });
+    return true;
   },
 
   detachSocketListeners() {
     const socket = getSocket();
-    if (!socket) return;
-    socket.off("contacts:initialStatuses");
-    socket.off("contact:status");
+    if (socket) {
+      socket.off("contacts:initialStatuses");
+      socket.off("contact:status");
+      socket.off("contact:removedByOther");
+    }
     set({ socketReady: false });
   },
 }));

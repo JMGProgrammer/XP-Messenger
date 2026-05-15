@@ -52,3 +52,18 @@ contactsRouter.post("/", async (req, res) => {
     status: target.status,
   });
 });
+
+// DELETE /contacts/:id  → eliminar a un contacto de mi lista
+contactsRouter.delete("/:id", async (req, res) => {
+  const targetId = req.params.id;
+  if (!targetId) return res.status(400).json({ error: "Invalid id" });
+
+  try {
+    await prisma.contact.delete({
+      where: { ownerId_targetId: { ownerId: req.userId!, targetId } },
+    });
+    res.json({ ok: true });
+  } catch {
+    return res.status(404).json({ error: "Contact not found" });
+  }
+});

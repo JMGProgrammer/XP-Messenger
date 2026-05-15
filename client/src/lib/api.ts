@@ -33,7 +33,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  // ----- Auth -----
   login(email: string, password: string) {
     return request<AuthResponse>("/auth/login", {
       method: "POST",
@@ -52,7 +51,13 @@ export const api = {
     return request<User>("/auth/me");
   },
 
-  // ----- Contacts -----
+  updateMe(patch: Partial<Pick<User, "personalMessage" | "displayName">>) {
+    return request<User>("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+
   getContacts() {
     return request<Contact[]>("/contacts");
   },
@@ -64,9 +69,26 @@ export const api = {
     });
   },
 
-  // ----- Messages -----
+  removeContact(contactId: string) {
+    return request<{ ok: true }>(`/contacts/${contactId}`, {
+      method: "DELETE",
+    });
+  },
+
   getMessages(otherUserId: string) {
     return request<Message[]>(`/messages/${otherUserId}`);
+  },
+
+  /** Mapa { senderId: count } de mensajes no leídos */
+  getUnreadCounts() {
+    return request<Record<string, number>>("/messages/unread-counts");
+  },
+
+  /** Marca como leídos todos los mensajes que ese contacto me envió */
+  markAsRead(otherUserId: string) {
+    return request<{ marked: number }>(`/messages/${otherUserId}/read`, {
+      method: "POST",
+    });
   },
 };
 

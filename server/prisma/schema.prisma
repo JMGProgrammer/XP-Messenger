@@ -36,14 +36,16 @@ model Contact {
 }
 
 model Message {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   senderId   String
   receiverId String
   content    String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
+  readAt     DateTime? // null = sin leer; timestamp = cuándo lo leyó el receiver
 
   sender   User @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@index([senderId, receiverId])
+  @@index([receiverId, readAt])
 }

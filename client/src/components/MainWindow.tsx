@@ -5,21 +5,39 @@ import ContactList from "./ContactList";
 import AddContactModal from "./AddContactModal";
 import { useAuthStore } from "@/store/authStore";
 import { useContactsStore } from "@/store/contactsStore";
+import { useChatStore } from "@/store/chatStore";
+import { getSocket } from "@/lib/socket";
 
 export default function MainWindow() {
   const logout = useAuthStore((s) => s.logout);
   const fetchContacts = useContactsStore((s) => s.fetchContacts);
   const attachListeners = useContactsStore((s) => s.attachSocketListeners);
   const detachListeners = useContactsStore((s) => s.detachSocketListeners);
+  const loadUnreadCounts = useChatStore((s) => s.loadUnreadCounts);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [minimized, setMinimized] = useState(false);
 
   useEffect(() => {
+    // Cargar datos iniciales en paralelo
     fetchContacts();
-    attachListeners();
+    loadUnreadCounts();
+
+    const ok = attachListeners();
+    if (!ok) {
+      const socket = getSocket();
+      if (socket) {
+        const onConnect = () => attachListeners();
+        socket.on("connect", onConnect);
+        return () => {
+          socket.off("connect", onConnect);
+          detachListeners();
+        };
+      }
+    }
+
     return () => detachListeners();
-  }, [fetchContacts, attachListeners, detachListeners]);
+  }, [fetchContacts, loadUnreadCounts, attachListeners, detachListeners]);
 
   return (
     <>
@@ -40,7 +58,6 @@ export default function MainWindow() {
         style={{ zIndex: 50 }}
       >
         <div className="msn-window h-full flex flex-col">
-          {/* Title bar */}
           <div className="msn-titlebar">
             <span>XP Messenger</span>
             <div className="msn-titlebar-buttons">
@@ -65,7 +82,6 @@ export default function MainWindow() {
             <>
               <UserHeader />
 
-              {/* Toolbar con acción de agregar */}
               <div className="px-2 py-1 bg-msn-bg-alt border-b border-msn-border flex items-center justify-between">
                 <button
                   onClick={() => setShowAddModal(true)}

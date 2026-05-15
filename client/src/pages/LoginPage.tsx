@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { playSound } from "@/lib/sounds";
 
 export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
@@ -25,6 +26,9 @@ export default function LoginPage() {
         }
         await register(email, password, displayName);
       }
+      // Sonido de bienvenida — disparado DENTRO del handler del click,
+      // así el navegador lo reconoce como acción del usuario y no bloquea autoplay.
+      playSound("login");
     } catch (err) {
       setLocalError((err as Error).message);
     }
@@ -33,7 +37,6 @@ export default function LoginPage() {
   return (
     <div className="xp-desktop flex items-center justify-center">
       <div className="msn-window w-[380px]">
-        {/* Title bar */}
         <div className="msn-titlebar">
           <span>.NET Messenger Service</span>
           <div className="msn-titlebar-buttons">
@@ -46,9 +49,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Body */}
         <div className="p-6 flex flex-col items-center bg-msn-bg">
-          {/* Logo MSN simulado */}
           <div className="my-4 flex flex-col items-center">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-msn-blue-light to-msn-blue-dark flex items-center justify-center shadow-md mb-2">
               <span className="text-white text-3xl font-bold">M</span>
