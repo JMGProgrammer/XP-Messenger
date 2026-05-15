@@ -11,13 +11,5 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
-      // Cualquier request del front a /api/* se reescribe a localhost:4000/*
-      "/api": {
-        target: "http://localhost:4000",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api/, ""),
-      },
-    },
   },
 });

@@ -17,8 +17,6 @@ type AuthedSocket = Socket<
 >;
 
 const onlineUsers = new Map<string, Set<string>>();
-
-// Cooldown del nudge: userId -> timestamp del último nudge enviado
 const lastNudgeAt = new Map<string, number>();
 const NUDGE_COOLDOWN_MS = 5000;
 
@@ -110,7 +108,6 @@ export function registerSocketHandlers(io: Server) {
       })),
     );
 
-    // ---- Mensajes ----
     socket.on(
       "message:send",
       async (data: { toUserId: string; content: string }) => {
@@ -136,7 +133,6 @@ export function registerSocketHandlers(io: Server) {
       },
     );
 
-    // ---- Typing ----
     socket.on(
       "typing",
       async (data: { toUserId: string; isTyping: boolean }) => {
@@ -150,7 +146,6 @@ export function registerSocketHandlers(io: Server) {
       },
     );
 
-    // ---- Cambio de estado ----
     socket.on(
       "status:change",
       async (data: { status: "online" | "away" | "busy" }) => {
@@ -171,11 +166,8 @@ export function registerSocketHandlers(io: Server) {
       },
     );
 
-    // ---- NUDGE (zumbido) ----
     socket.on("nudge:send", async (data: { toUserId: string }) => {
       if (!data?.toUserId) return;
-
-      // Cooldown anti-spam (clave: emisor+receptor)
       const cooldownKey = `${userId}->${data.toUserId}`;
       const now = Date.now();
       const last = lastNudgeAt.get(cooldownKey) ?? 0;
@@ -186,7 +178,6 @@ export function registerSocketHandlers(io: Server) {
         });
         return;
       }
-
       const mutual = await areMutualContacts(userId, data.toUserId);
       if (!mutual) {
         socket.emit("nudge:error", {
@@ -196,19 +187,13 @@ export function registerSocketHandlers(io: Server) {
         });
         return;
       }
-
       lastNudgeAt.set(cooldownKey, now);
-
-      // Avisar al receptor
       emitToUser(io, data.toUserId, "nudge:receive", { fromUserId: userId });
-      // Confirmar al emisor para que muestre "Enviaste un zumbido"
       socket.emit("nudge:sent", { toUserId: data.toUserId });
     });
 
-    // ---- Eliminar contacto: notificación en vivo ----
     socket.on("contact:removed", (data: { removedUserId: string }) => {
       if (!data?.removedUserId) return;
-      // Avisar al otro usuario (si está conectado) que lo quitamos
       emitToUser(io, data.removedUserId, "contact:removedByOther", {
         byUserId: userId,
       });
