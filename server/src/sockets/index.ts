@@ -1,1 +1,1 @@
-export { registerSocketHandlers } from "./handlers.ts";
+export { registerSocketHandlers } from "./handlers.js";
